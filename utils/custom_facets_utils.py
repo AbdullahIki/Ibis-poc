@@ -120,6 +120,65 @@ def delete_custom_facet(ikigai, headers, facet_id):
     return response.json()
 
 
+SHARE_EMAILS = [
+    "abdullah@ikigailabs.io",
+    "adharask@ikigailabs.io",
+    "nathaniel@ikigailabs.io",
+]
+
+
+def deploy_custom_facet(ikigai, facet_name, script, description="", share_emails=None):
+    """Deploy a custom facet by name using the Ikigai SDK.
+
+    If a custom facet with the given name already exists it is deleted first,
+    then a fresh one is created with the supplied script.  This guarantees
+    the script is always present and that .unpinned() resolves correctly
+    (update_script only touches the draft; a new version would be needed
+    for unpinned to pick it up — deleting + recreating avoids that issue).
+
+    After creation the facet is automatically shared (ADMIN) with every
+    address in ``share_emails`` (defaults to SHARE_EMAILS).
+
+    Returns:
+        CustomFacet: The custom facet object (call .unpinned() to use in flows).
+    """
+    from ikigai import CustomFacetAccessLevel
+
+    if share_emails is None:
+        share_emails = SHARE_EMAILS
+
+    # Delete existing facet if present
+    try:
+        existing = ikigai.custom_facets[facet_name]
+        print(f"  Deleting existing custom facet '{facet_name}' …")
+        existing.delete()
+    except Exception:
+        pass  # facet does not exist yet
+
+    # Create fresh
+    print(f"  Creating custom facet '{facet_name}' …")
+    cf = (
+        ikigai.custom_facet.new(
+            name=facet_name,
+            facet_type=ikigai.facet_types.MID.CUSTOM_FACET,
+        )
+        .script(script=script)
+        .description(description)
+        .build()
+    )
+
+    # Share with configured emails
+    for email in share_emails:
+        try:
+            cf.access.grant(email=email, access_level=CustomFacetAccessLevel.ADMIN)
+        except Exception as exc:
+            print(f"  ⚠ Could not share '{facet_name}' with {email}: {exc}")
+    if share_emails:
+        print(f"  Shared '{facet_name}' (ADMIN) with {len(share_emails)} user(s)")
+
+    return cf
+
+
 def share_custom_facet(
     ikigai, headers, custom_facet_id, target_user_email, access_level="READ"
 ):
