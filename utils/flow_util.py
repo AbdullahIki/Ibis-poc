@@ -125,7 +125,7 @@ def set_mode_batch(app, chunks: list, flow_types: list, mode: str):
 
     print("\nDone!")
 
-def build_or_update_flow(app, flow_name, flow_def):
+def build_or_update_flow(app, flow_name, flow_def, directory_path=None):
     """
     Build a new flow or update an existing one with the given definition.
 
@@ -133,6 +133,8 @@ def build_or_update_flow(app, flow_name, flow_def):
         app: Ikigai app instance
         flow_name: Name of the flow to build or update
         flow_def: Flow definition to use
+        directory_path: Optional list of directory names forming a path,
+                        e.g. ["Preprocessing"]. Created if it doesn't exist.
 
     Returns:
         Flow object that was built or updated
@@ -140,6 +142,9 @@ def build_or_update_flow(app, flow_name, flow_def):
     exists = app.flows.search(flow_name).get(flow_name) is not None
     if not exists:
         flow = app.flow.new(name=flow_name).definition(flow_def)
+        if directory_path:
+            directory = get_flow_directory(app, directory_path)
+            flow = flow.directory(directory)
         flow.build()
     else:
         flow = app.flows[flow_name]
